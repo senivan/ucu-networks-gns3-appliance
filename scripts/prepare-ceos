@@ -1,0 +1,95 @@
+#!/bin/sh
+
+set -eu
+
+VERSION="4.29.3M"
+EXPECTED_SOURCE_SHA256="d35da1459a4b061fce3d6789e21bae0ae6b89114c4168cd7778bb41c1859ece9"
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+REPO_DIR=$(dirname -- "$SCRIPT_DIR")
+SOURCE=${1:-"$REPO_DIR/inputs/cEOS64-lab-$VERSION.tar.xz"}
+OUTPUT=${2:-"$REPO_DIR/inputs/ceosimage-$VERSION-docker.tar.xz"}
+WORK_TAG="gns3-ceos-prep-$$:$VERSION"
+VERSION_TAG="ceosimage:$VERSION"
+GNS3_TAG="ceosimage:GNS3"
+CONTAINER="gns3-ceos-prep-$$"
+TEMP_ARCHIVE=""
+TEMP_OUTPUT=""
+
+usage() {
+	echo "Usage: $0 [SOURCE_ARCHIVE [OUTPUT_ARCHIVE]]" >&2
+}
+
+cleanup() {
+	docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
+	docker image rm "$GNS3_TAG" "$VERSION_TAG" "$WORK_TAG" \
+		>/dev/null 2>&1 || true
+	if [ -n "$TEMP_ARCHIVE" ]; then
+		rm -f "$TEMP_ARCHIVE"
+	fi
+	if [ -n "$TEMP_OUTPUT" ]; then
+		rm -f "$TEMP_OUTPUT"
+	fi
+}
+
+if [ "$#" -gt 2 ]; then
+	usage
+	exit 2
+fi
+
+for command_name in docker sha256sum xz; do
+	if ! command -v "$command_name" >/dev/null 2>&1; then
+		echo "Required command not found: $command_name" >&2
+		exit 1
+	fi
+done
+
+if [ ! -f "$SOURCE" ]; then
+	echo "cEOS source archive not found: $SOURCE" >&2
+	exit 1
+fi
+
+if [ -e "$OUTPUT" ]; then
+	echo "Output already exists; refusing to overwrite it: $OUTPUT" >&2
+	exit 1
+fi
+
+printf '%s  %s\n' "$EXPECTED_SOURCE_SHA256" "$SOURCE" | sha256sum -c -
+
+if docker image inspect "$VERSION_TAG" >/dev/null 2>&1 || \
+	docker image inspect "$GNS3_TAG" >/dev/null 2>&1; then
+	echo "$VERSION_TAG or $GNS3_TAG already exists; refusing to overwrite it." >&2
+	exit 1
+fi
+
+output_dir=$(dirname -- "$OUTPUT")
+mkdir -p "$output_dir"
+TEMP_ARCHIVE=$(mktemp "${TMPDIR:-/tmp}/gns3-ceos.XXXXXX.tar")
+TEMP_OUTPUT=$(mktemp "$output_dir/.gns3-ceos.XXXXXX.tar.xz")
+trap cleanup EXIT HUP INT TERM
+
+docker import "$SOURCE" "$WORK_TAG" >/dev/null
+docker run --name "$CONTAINER" \
+	-e CEOS=1 \
+	-e container=docker \
+	-e EOS_PLATFORM=ceoslab \
+	-e SKIP_ZEROTOUCH_BARRIER_IN_SYSDBINIT=1 \
+	-e ETBA=1 \
+	-e INTFTYPE=eth \
+	"$WORK_TAG" sh -c \
+	'rm -f /etc/systemd/system/getty.target.wants/getty@tty1.service'
+
+docker commit \
+	--change 'CMD ["/sbin/init"]' \
+	--change 'VOLUME /mnt/flash' \
+	--change "LABEL org.gns3.ceos.version=$VERSION" \
+	--change "LABEL org.gns3.ceos.source-sha256=$EXPECTED_SOURCE_SHA256" \
+	"$CONTAINER" "$VERSION_TAG" >/dev/null
+docker tag "$VERSION_TAG" "$GNS3_TAG"
+docker save --output "$TEMP_ARCHIVE" "$VERSION_TAG" "$GNS3_TAG"
+xz -c -T0 "$TEMP_ARCHIVE" >"$TEMP_OUTPUT"
+mv "$TEMP_OUTPUT" "$OUTPUT"
+TEMP_OUTPUT=""
+
+echo "Prepared cEOS archive: $OUTPUT"
+sha256sum "$OUTPUT"
