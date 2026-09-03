@@ -1,0 +1,52 @@
+#!/bin/sh
+
+set -eu
+
+EXPECTED_REVISION="cb857ba4c87a93e5265a9e4a3f32071abf39e14a"
+EXPECTED_TAG="2026.05.1"
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+REPO_DIR=$(dirname -- "$SCRIPT_DIR")
+BUILDROOT_DIR="$REPO_DIR/buildroot"
+PATCH_FILE="$REPO_DIR/br2-external/board/gns3/buildroot-patches/0001-libvirt-do-not-force-cgroupfs-mount.patch"
+MODE=${1:-setup}
+
+if [ "$MODE" != "setup" ] && [ "$MODE" != "--check" ]; then
+	echo "Usage: $0 [--check]" >&2
+	exit 2
+fi
+
+if [ "$MODE" = "setup" ] && \
+	[ ! -d "$BUILDROOT_DIR/.git" ] && [ ! -f "$BUILDROOT_DIR/.git" ]; then
+	git -C "$REPO_DIR" submodule update --init -- buildroot
+fi
+
+if [ ! -d "$BUILDROOT_DIR/.git" ] && [ ! -f "$BUILDROOT_DIR/.git" ]; then
+	echo "Buildroot submodule is not initialized; run 'make setup'." >&2
+	exit 1
+fi
+
+actual_revision=$(git -C "$BUILDROOT_DIR" rev-parse HEAD)
+if [ "$actual_revision" != "$EXPECTED_REVISION" ]; then
+	echo "Unexpected Buildroot revision: $actual_revision" >&2
+	echo "Expected $EXPECTED_TAG ($EXPECTED_REVISION)." >&2
+	exit 1
+fi
+
+if git -C "$BUILDROOT_DIR" apply --reverse --check "$PATCH_FILE" >/dev/null 2>&1; then
+	printf 'Buildroot %s is ready; compatibility patch is applied.\n' "$EXPECTED_TAG"
+	exit 0
+fi
+
+if [ "$MODE" = "--check" ]; then
+	echo "Buildroot compatibility patch is not applied; run 'make setup'." >&2
+	exit 1
+fi
+
+if ! git -C "$BUILDROOT_DIR" apply --check "$PATCH_FILE"; then
+	echo "Compatibility patch cannot be applied cleanly." >&2
+	exit 1
+fi
+
+git -C "$BUILDROOT_DIR" apply "$PATCH_FILE"
+printf 'Buildroot %s initialized and compatibility patch applied.\n' "$EXPECTED_TAG"
