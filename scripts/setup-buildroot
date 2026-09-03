@@ -34,6 +34,15 @@ if [ "$actual_revision" != "$EXPECTED_REVISION" ]; then
 fi
 
 if git -C "$BUILDROOT_DIR" apply --reverse --check "$PATCH_FILE" >/dev/null 2>&1; then
+	if [ "$MODE" = "--check" ]; then
+		tracked_changes=$(git -C "$BUILDROOT_DIR" status \
+			--short --untracked-files=no)
+		if [ "$tracked_changes" != " M package/libvirt/Config.in" ]; then
+			echo "Buildroot has unexpected tracked changes:" >&2
+			printf '%s\n' "$tracked_changes" >&2
+			exit 1
+		fi
+	fi
 	printf 'Buildroot %s is ready; compatibility patch is applied.\n' "$EXPECTED_TAG"
 	exit 0
 fi

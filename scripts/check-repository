@@ -1,0 +1,70 @@
+#!/bin/sh
+
+set -eu
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+REPO_DIR=$(dirname -- "$SCRIPT_DIR")
+MODE=${1:-source}
+
+check_available_inputs() {
+	(
+		cd "$REPO_DIR/inputs"
+		while read -r checksum input_file; do
+			if [ -f "$input_file" ]; then
+				printf '%s  %s\n' "$checksum" "$input_file" |
+					sha256sum --check -
+			fi
+		done <SHA256SUMS
+	)
+}
+
+if [ "$MODE" != "source" ] && [ "$MODE" != "--inputs" ]; then
+	echo "Usage: $0 [--inputs]" >&2
+	exit 2
+fi
+
+cd "$REPO_DIR"
+
+if [ "$MODE" = "--inputs" ]; then
+	for input_file in \
+		alpine-virt-3.22.1.qcow2 \
+		chr-7.19.4.img.zip \
+		ceosimage-4.29.3M-docker.tar.xz
+	do
+		if [ ! -f "inputs/$input_file" ]; then
+			echo "Missing required build input: inputs/$input_file" >&2
+			exit 1
+		fi
+	done
+	check_available_inputs
+	exit 0
+fi
+
+"$SCRIPT_DIR/setup-buildroot" --check
+
+find scripts br2-external -type f \
+	\( -name '*.sh' -o -path '*/etc/init.d/S*' -o \
+	-path '*/package/*/S[0-9]*' -o -path '*/scripts/*' \) \
+	-exec sh -n {} +
+
+if command -v shellcheck >/dev/null 2>&1; then
+	find scripts br2-external -type f \
+		\( -name '*.sh' -o -path '*/etc/init.d/S*' -o \
+		-path '*/package/*/S[0-9]*' -o -path '*/scripts/*' \) \
+		-exec shellcheck {} +
+else
+	echo "shellcheck not installed; POSIX syntax checks passed."
+fi
+
+find br2-external -type f \
+	\( -name 'Config.in' -o -name '*.mk' -o -name '*.hash' \) \
+	-exec buildroot/utils/check-package --br2-external \
+		--exclude Shellcheck {} +
+
+awk '
+	NF != 2 || length($1) != 64 || $1 !~ /^[0-9a-f]+$/ { exit 1 }
+' inputs/SHA256SUMS
+
+check_available_inputs
+
+echo "Repository checks passed."
