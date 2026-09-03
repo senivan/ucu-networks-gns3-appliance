@@ -131,8 +131,8 @@ mounted automatically at `/var/lib/gns3/projects`; its larger virtual size
 allows room for student projects, writable QEMU overlays and packet captures
 without consuming 30 GiB on the build host while it remains empty.
 
-The templates image is populated from the
-project-root `chr-7.19.4.img.zip`. The build verifies the archive SHA-256
+The templates image is populated from
+`inputs/chr-7.19.4.img.zip`. The build verifies the archive SHA-256
 `e77f0d73a9c7841918debf4e9e1372f457274d58901b11463551056d9beaccf1`
 and the extracted CHR image SHA-256
 `bb2435e35376d891590d5219e3d3ea9e3feac05a5fe415181388327dd8aeb2f9`.
