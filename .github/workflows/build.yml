@@ -1,0 +1,111 @@
+name: Build appliance
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gns3-appliance-builder
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build GNS3 appliance
+    runs-on: [self-hosted, Linux, X64, gns3-builder]
+    timeout-minutes: 360
+
+    env:
+      GNS3_INPUT_DIR: ${{ vars.GNS3_INPUT_DIR }}
+
+    steps:
+      - name: Check out source and Buildroot
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+          fetch-depth: 1
+
+      - name: Attach licensed build inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${GNS3_INPUT_DIR}" ]]; then
+            echo "Set the GNS3_INPUT_DIR repository variable to the persistent input directory on the runner." >&2
+            exit 1
+          fi
+
+          required_inputs=(
+            alpine-virt-3.22.1.qcow2
+            chr-7.19.4.img.zip
+            ceosimage-4.29.3M-docker.tar.xz
+          )
+
+          for input_file in "${required_inputs[@]}"; do
+            source_file="${GNS3_INPUT_DIR}/${input_file}"
+            target_file="${GITHUB_WORKSPACE}/inputs/${input_file}"
+
+            if [[ ! -f "${source_file}" ]]; then
+              echo "Missing builder input: ${source_file}" >&2
+              exit 1
+            fi
+
+            ln -s "${source_file}" "${target_file}"
+          done
+
+      - name: Validate source and inputs
+        run: |
+          make setup
+          make check
+          make check-inputs
+
+      - name: Build images
+        run: |
+          make distclean
+          make build
+
+      - name: Validate generated images
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          image_dir=buildroot/output/images
+          test -s "${image_dir}/disk.img"
+          test -s "${image_dir}/bzImage"
+          test -s "${image_dir}/gns3-templates.img"
+          test -s "${image_dir}/gns3-projects.img"
+          test "$(e2label "${image_dir}/gns3-templates.img")" = GNS3_TEMPLATES
+          test "$(e2label "${image_dir}/gns3-projects.img")" = GNS3_PROJECTS
+
+      - name: Package sparse images
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p artifacts
+          artifact_name="ucu-networks-gns3-${GITHUB_SHA}"
+
+          tar --sparse \
+            --use-compress-program='xz -T0 -6' \
+            -cf "artifacts/${artifact_name}.tar.xz" \
+            -C buildroot/output/images \
+            disk.img \
+            bzImage \
+            gns3-templates.img \
+            gns3-projects.img
+
+          (
+            cd artifacts
+            sha256sum "${artifact_name}.tar.xz" > SHA256SUMS
+          )
+
+      - name: Upload appliance artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ucu-networks-gns3-${{ github.sha }}
+          path: artifacts/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
