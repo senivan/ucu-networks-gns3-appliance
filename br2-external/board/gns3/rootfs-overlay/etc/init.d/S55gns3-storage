@@ -1,0 +1,115 @@
+#!/bin/sh
+
+TEMPLATES_LABEL="GNS3_TEMPLATES"
+TEMPLATES_MOUNT="/var/lib/gns3/library"
+PROJECTS_LABEL="GNS3_PROJECTS"
+PROJECTS_MOUNT="/var/lib/gns3/projects"
+
+prepare_mount() {
+	label="$1"
+	target="$2"
+	required="$3"
+	if ! device=$(findfs "LABEL=$label" 2>/dev/null); then
+		if [ "$required" -eq 1 ]; then
+			echo "Required filesystem LABEL=$label was not found" >&2
+			return 1
+		fi
+		return 0
+	fi
+
+	install -d -m 0755 -o gns3 -g gns3 "$target" || return 1
+	if mountpoint -q "$target"; then
+		return 0
+	fi
+
+	mount -o rw "$device" "$target" || return 1
+	chown gns3:gns3 "$target" || return 1
+}
+
+prepare_directories() {
+	install -d -m 0755 -o gns3 -g gns3 \
+		"$TEMPLATES_MOUNT/images" \
+		"$TEMPLATES_MOUNT/images/QEMU" \
+		"$TEMPLATES_MOUNT/appliances" \
+		"$TEMPLATES_MOUNT/symbols" \
+		"$TEMPLATES_MOUNT/configs" \
+		"$TEMPLATES_MOUNT/resources" \
+		"$PROJECTS_MOUNT"
+
+	install -d -m 0710 -o root -g docker \
+		"$TEMPLATES_MOUNT/docker"
+	install -d -m 0755 -o root -g root \
+		"$TEMPLATES_MOUNT/docker-images"
+
+	chown gns3:gns3 \
+		"$TEMPLATES_MOUNT" \
+		"$TEMPLATES_MOUNT/images" \
+		"$TEMPLATES_MOUNT/images/QEMU" \
+		"$TEMPLATES_MOUNT/appliances" \
+		"$TEMPLATES_MOUNT/symbols" \
+		"$TEMPLATES_MOUNT/configs" \
+		"$TEMPLATES_MOUNT/resources" \
+		"$PROJECTS_MOUNT"
+
+	if [ -f "$TEMPLATES_MOUNT/configs/gns3_controller.conf" ]; then
+		chown gns3:gns3 \
+			"$TEMPLATES_MOUNT/configs/gns3_controller.conf"
+	fi
+}
+
+start() {
+	printf 'Mounting GNS3 data disks: '
+	prepare_mount "$TEMPLATES_LABEL" "$TEMPLATES_MOUNT" 1 &&
+	prepare_mount "$PROJECTS_LABEL" "$PROJECTS_MOUNT" 0 &&
+	prepare_directories
+	status=$?
+	if [ "$status" -eq 0 ]; then
+		echo "OK"
+	else
+		echo "FAIL"
+	fi
+	return "$status"
+}
+
+unmount_data() {
+	target="$1"
+	if mountpoint -q "$target"; then
+		umount "$target"
+	fi
+}
+
+stop() {
+	printf 'Unmounting GNS3 data disks: '
+	unmount_data "$PROJECTS_MOUNT" &&
+	unmount_data "$TEMPLATES_MOUNT"
+	status=$?
+	if [ "$status" -eq 0 ]; then
+		echo "OK"
+	else
+		echo "FAIL"
+	fi
+	return "$status"
+}
+
+status() {
+	for target in "$TEMPLATES_MOUNT" "$PROJECTS_MOUNT"; do
+		if mountpoint -q "$target"; then
+			echo "$target is mounted"
+		else
+			echo "$target is using system-disk storage"
+		fi
+	done
+}
+
+case "$1" in
+	start|stop|status)
+		"$1"
+		;;
+	restart)
+		stop && start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart|status}"
+		exit 1
+		;;
+esac

@@ -1,0 +1,49 @@
+{
+  "appliance_id": "05512118-2b99-4789-90d3-5135665c3ec5",
+  "name": "MikroTik CHR",
+  "category": "router",
+  "description": "Cloud Hosted Router (CHR) is MikroTik RouterOS for x86-64 virtual machines.",
+  "vendor_name": "MikroTik",
+  "vendor_url": "https://mikrotik.com/",
+  "documentation_url": "https://help.mikrotik.com/docs/spaces/ROS/pages/18350234/Cloud+Hosted+Router+CHR",
+  "product_name": "MikroTik Cloud Hosted Router",
+  "product_url": "https://mikrotik.com/download",
+  "registry_version": 4,
+  "status": "stable",
+  "maintainer": "GNS3 appliance project",
+  "usage": "The default credentials are username admin with an empty password. MikroTik RouterOS CHR licensing terms apply.",
+  "symbol": ":/symbols/router_firewall.svg",
+  "port_name_format": "ether{port1}",
+  "qemu": {
+    "adapter_type": "virtio-net-pci",
+    "adapters": 8,
+    "ram": 384,
+    "cpus": 1,
+    "hda_disk_interface": "virtio",
+    "arch": "x86_64",
+    "console_type": "telnet",
+    "boot_priority": "c",
+    "kvm": "allow",
+    "options": "-nographic",
+    "on_close": "shutdown_signal"
+  },
+  "images": [
+    {
+      "filename": "chr-7.19.4.img",
+      "version": "7.19.4",
+      "md5sum": "dfa0efec85cc225fe5bc4f49121606e1",
+      "filesize": 134217728,
+      "download_url": "https://mikrotik.com/download",
+      "direct_download_url": "https://download.mikrotik.com/routeros/7.19.4/chr-7.19.4.img.zip",
+      "compression": "zip"
+    }
+  ],
+  "versions": [
+    {
+      "name": "7.19.4",
+      "images": {
+        "hda_disk_image": "chr-7.19.4.img"
+      }
+    }
+  ]
+}

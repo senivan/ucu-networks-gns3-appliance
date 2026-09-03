@@ -1,0 +1,4 @@
+# From https://pypi.org/pypi/sentry-sdk/2.59.0/json
+sha256  cd265808ef8bf3f3edf69b527c0a0b2b6b1322762679e55b8987db2e9584aec1  sentry_sdk-2.59.0.tar.gz
+# Locally calculated
+sha256  2a140d660f462812fa290bc740d04633126c5ec45d84b79b569e127b0eeddd0b  LICENSE

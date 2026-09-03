@@ -1,0 +1,97 @@
+#!/bin/sh
+
+DAEMON="/usr/bin/qemu-ga"
+PIDFILE="/run/qemu-ga.pid"
+CHANNEL="/dev/virtio-ports/org.qemu.guest_agent.0"
+LOGFILE="/var/log/qemu-ga.log"
+
+is_running() {
+	[ -s "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null
+}
+
+start() {
+	printf 'Starting QEMU Guest Agent: '
+
+	if is_running; then
+		echo "OK (already running)"
+		return 0
+	fi
+
+	if [ ! -c "$CHANNEL" ]; then
+		echo "FAIL ($CHANNEL is missing)"
+		return 1
+	fi
+
+	rm -f "$PIDFILE"
+	mkdir -p /run /var/log
+
+	if ! start-stop-daemon --start --quiet \
+		--pidfile "$PIDFILE" --exec "$DAEMON" -- \
+		--method=virtio-serial \
+		--path="$CHANNEL" \
+		--logfile="$LOGFILE" \
+		--pidfile="$PIDFILE" \
+		--statedir=/run \
+		--retry-path \
+		--daemonize; then
+		echo "FAIL"
+		return 1
+	fi
+
+	attempt=0
+	while [ "$attempt" -lt 5 ]; do
+		if is_running; then
+			echo "OK"
+			return 0
+		fi
+		attempt=$((attempt + 1))
+		sleep 1
+	done
+
+	echo "FAIL (process did not remain running)"
+	return 1
+}
+
+stop() {
+	printf 'Stopping QEMU Guest Agent: '
+
+	if ! is_running; then
+		rm -f "$PIDFILE"
+		echo "OK (not running)"
+		return 0
+	fi
+
+	if start-stop-daemon --stop --quiet \
+		--pidfile "$PIDFILE" --exec "$DAEMON"; then
+		rm -f "$PIDFILE"
+		echo "OK"
+		return 0
+	fi
+
+	echo "FAIL"
+	return 1
+}
+
+status() {
+	if is_running; then
+		echo "QEMU Guest Agent is running (PID $(cat "$PIDFILE"))"
+		return 0
+	fi
+
+	echo "QEMU Guest Agent is not running"
+	return 3
+}
+
+restart() {
+	stop && start
+}
+
+case "$1" in
+	start|stop|restart|status)
+		"$1"
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart|status}"
+		exit 1
+		;;
+esac

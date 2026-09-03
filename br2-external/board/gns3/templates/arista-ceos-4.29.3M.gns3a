@@ -1,0 +1,19 @@
+{
+  "appliance_id": "a7eec173-9680-4c1f-bf79-1bf29d485375",
+  "name": "cEOS",
+  "category": "multilayer_switch",
+  "description": "Arista cEOS packages EOS as a container for development, testing and lab environments.",
+  "vendor_name": "Arista",
+  "vendor_url": "https://www.arista.com/",
+  "product_name": "cEOS",
+  "registry_version": 4,
+  "status": "experimental",
+  "maintainer": "GNS3 appliance project",
+  "usage": "The prepared ceosimage:GNS3 image is loaded automatically. Open an auxiliary console and run Cli. Arista cEOS licensing terms apply.",
+  "symbol": ":/symbols/multilayer_switch.svg",
+  "docker": {
+    "adapters": 8,
+    "image": "ceosimage:GNS3",
+    "console_type": "telnet"
+  }
+}

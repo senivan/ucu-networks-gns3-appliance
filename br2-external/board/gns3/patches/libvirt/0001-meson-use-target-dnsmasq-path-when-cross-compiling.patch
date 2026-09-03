@@ -1,0 +1,37 @@
+From 9c68bc0ebddf04329c54a20ecb1c09aa1031889f Mon Sep 17 00:00:00 2001
+From: GNS3 Buildroot Appliance <gns3@localhost>
+Date: Sat, 1 Aug 2026 00:00:00 +0000
+Subject: [PATCH] meson: use target dnsmasq path when cross-compiling
+
+Meson's find_program() searches the build host when cross-compiling. The
+Buildroot host does not provide dnsmasq, so libvirt falls back to the bare
+string "dnsmasq". virdnsmasq later passes that string directly to stat(),
+which does not search PATH, and the network driver rejects an otherwise
+installed target dnsmasq.
+
+Use Buildroot's target installation path as the fallback while preserving
+native-build discovery.
+
+Signed-off-by: GNS3 Buildroot Appliance <gns3@localhost>
+---
+ meson.build | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/meson.build b/meson.build
+index eb54d19bb0..289b773a89 100644
+--- a/meson.build
++++ b/meson.build
+@@ -872,6 +872,10 @@ foreach name : optional_programs
+   varname = name.underscorify()
+   if prog.found()
+     prog_path = prog.path()
++  elif meson.is_cross_build() and name == 'dnsmasq'
++    # virdnsmasq passes this value directly to stat(), so a bare command
++    # name cannot be resolved through PATH at runtime.
++    prog_path = '/usr/sbin/dnsmasq'
+   else
+     prog_path = name
+   endif
+-- 
+2.47.3
+

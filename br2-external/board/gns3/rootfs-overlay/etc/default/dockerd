@@ -1,0 +1,8 @@
+# Keep Docker image layers off the 1 GiB system filesystem. S60dockerd
+# sources this file after S55gns3-storage has mounted GNS3_TEMPLATES.
+if ! mountpoint -q /var/lib/gns3/library; then
+	echo "GNS3_TEMPLATES must be mounted before Docker starts" >&2
+	exit 1
+fi
+
+DOCKERD_ARGS="--data-root /var/lib/gns3/library/docker"

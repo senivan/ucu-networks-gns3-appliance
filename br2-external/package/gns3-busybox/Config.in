@@ -1,0 +1,8 @@
+config BR2_PACKAGE_GNS3_BUSYBOX
+	bool "static BusyBox resource for GNS3 Docker nodes"
+	depends on BR2_USE_MMU
+	help
+	  Build a separate statically linked x86-64 BusyBox for GNS3
+	  Docker containers. It is not the appliance's init BusyBox.
+
+	  https://busybox.net/

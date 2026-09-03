@@ -1,0 +1,9 @@
+config BR2_PACKAGE_PYTHON_GNS3_SENTRY_SDK
+	bool "python-sentry-sdk for GNS3"
+	select BR2_PACKAGE_PYTHON_CERTIFI
+	select BR2_PACKAGE_PYTHON_URLLIB3
+	help
+	  Sentry Python SDK at the minimum version required by GNS3
+	  Server 2.2.60.
+
+	  https://github.com/getsentry/sentry-python

@@ -1,0 +1,27 @@
+#!/bin/sh
+
+case "$1" in
+	start)
+		printf 'Starting loopback: '
+		if ip address replace 127.0.0.1/8 dev lo &&
+		   ip link set dev lo up; then
+			echo "OK"
+		else
+			echo "FAIL"
+			exit 1
+		fi
+		;;
+	stop)
+		printf 'Stopping loopback: '
+		if ip link set dev lo down; then
+			echo "OK"
+		else
+			echo "FAIL"
+			exit 1
+		fi
+		;;
+	*)
+		echo "Usage: $0 {start|stop}"
+		exit 1
+		;;
+esac

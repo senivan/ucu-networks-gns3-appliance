@@ -1,0 +1,6 @@
+config BR2_PACKAGE_PYTHON_PY_CPUINFO
+	bool "python-py-cpuinfo"
+	help
+	  Python CPU information library used by GNS3.
+
+	  https://github.com/workhorsy/py-cpuinfo

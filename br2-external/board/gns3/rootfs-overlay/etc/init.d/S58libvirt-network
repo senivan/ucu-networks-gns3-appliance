@@ -1,0 +1,121 @@
+#!/bin/sh
+
+DAEMON="/usr/sbin/virtnetworkd"
+PIDFILE="/var/run/virtnetworkd.pid"
+NETWORK_XML="/etc/libvirt/qemu/networks/default.xml"
+URI="network:///system"
+PATH="/usr/sbin:/usr/bin:/sbin:/bin"
+export PATH
+
+wait_for_libvirt() {
+	attempt=0
+	while [ "$attempt" -lt 10 ]; do
+		if virsh -c "$URI" net-list --all >/dev/null 2>&1; then
+			return 0
+		fi
+		attempt=$((attempt + 1))
+		sleep 1
+	done
+
+	echo "libvirt network driver did not become ready" >&2
+	return 1
+}
+
+network_is_active() {
+	LC_ALL=C virsh -c "$URI" net-info default 2>/dev/null |
+		grep -q '^Active:.*yes$'
+}
+
+start() {
+	printf 'Starting libvirt default network: '
+
+	mkdir -p /run/libvirt /var/lib/libvirt/network /var/log/libvirt
+
+	if [ -s "$PIDFILE" ] &&
+		kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+		echo "FAIL (virtnetworkd already running)"
+		return 1
+	fi
+
+	rm -f "$PIDFILE"
+	if ! start-stop-daemon --start --quiet \
+		--pidfile "$PIDFILE" --exec "$DAEMON" \
+		-- -d -p "$PIDFILE"; then
+		echo "FAIL (virtnetworkd)"
+		return 1
+	fi
+
+	if ! wait_for_libvirt; then
+		start-stop-daemon --stop --quiet \
+			--pidfile "$PIDFILE" --exec "$DAEMON"
+		echo "FAIL"
+		return 1
+	fi
+
+	if ! virsh -c "$URI" net-info default >/dev/null 2>&1; then
+		if ! virsh -c "$URI" net-define "$NETWORK_XML" >/dev/null; then
+			echo "FAIL (define default)"
+			return 1
+		fi
+	fi
+
+	if ! virsh -c "$URI" net-autostart default >/dev/null; then
+		echo "FAIL (autostart default)"
+		return 1
+	fi
+
+	if ! network_is_active; then
+		if ! virsh -c "$URI" net-start default >/dev/null; then
+			echo "FAIL (start default)"
+			return 1
+		fi
+	fi
+
+	if ! ip link show virbr0 >/dev/null 2>&1; then
+		echo "FAIL (virbr0 missing)"
+		return 1
+	fi
+
+	echo "OK"
+}
+
+stop() {
+	printf 'Stopping libvirt default network: '
+	if start-stop-daemon --stop --quiet \
+		--pidfile "$PIDFILE" --exec "$DAEMON"; then
+		rm -f "$PIDFILE"
+		echo "OK"
+	else
+		echo "FAIL"
+		return 1
+	fi
+}
+
+status() {
+	if [ -s "$PIDFILE" ] &&
+		kill -0 "$(cat "$PIDFILE")" 2>/dev/null &&
+		network_is_active &&
+		ip link show virbr0 >/dev/null 2>&1; then
+		echo "libvirt default network is active on virbr0"
+		return 0
+	fi
+
+	echo "libvirt default network is not active"
+	return 3
+}
+
+restart() {
+	stop
+	sleep 1
+	start
+}
+
+case "$1" in
+	start|stop|restart|status)
+		"$1"
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart|status}"
+		exit 1
+		;;
+esac

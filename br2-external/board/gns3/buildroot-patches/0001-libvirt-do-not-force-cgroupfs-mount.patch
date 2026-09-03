@@ -1,0 +1,29 @@
+From: GNS3 appliance maintainers
+Subject: [PATCH] package/libvirt: do not force cgroupfs-mount
+
+The appliance uses the unified cgroup v2 hierarchy and Docker Engine.
+Buildroot's docker-engine package deliberately conflicts with
+cgroupfs-mount, but libvirt 7.10.0 unconditionally selects that legacy
+mount helper for non-systemd systems even when only its network driver is
+used.
+
+Do not force cgroupfs-mount. The appliance kernel/init setup mounts its
+cgroup v2 hierarchy independently, and libvirt is only used to manage the
+virbr0 NAT network.
+
+---
+ package/libvirt/Config.in | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/package/libvirt/Config.in b/package/libvirt/Config.in
+--- a/package/libvirt/Config.in
++++ b/package/libvirt/Config.in
+@@ -24,8 +24,6 @@ config BR2_PACKAGE_LIBVIRT
+ 	select BR2_PACKAGE_LIBTIRPC
+ 	select BR2_PACKAGE_LIBXML2
+ 	select BR2_PACKAGE_ZLIB
+-	# run-time dependencies
+-	select BR2_PACKAGE_CGROUPFS_MOUNT if !BR2_INIT_SYSTEMD
+ 	help
+ 	  Libvirt is collection of software that provides a convenient
+ 	  way to manage virtual machines and other virtualization

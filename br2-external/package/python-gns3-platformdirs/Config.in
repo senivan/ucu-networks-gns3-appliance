@@ -1,0 +1,7 @@
+config BR2_PACKAGE_PYTHON_GNS3_PLATFORMDIRS
+	bool "python-platformdirs 2.x for GNS3"
+	help
+	  Platform-specific application directories. This package pins
+	  the 2.x API required by GNS3 Server 2.2.60.
+
+	  https://github.com/platformdirs/platformdirs

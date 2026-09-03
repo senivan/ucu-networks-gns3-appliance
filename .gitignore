@@ -1,0 +1,30 @@
+# Vendor-supplied and locally prepared appliance inputs. These are large and
+# may be subject to redistribution restrictions; keep only their checksums and
+# acquisition instructions in Git.
+/*.qcow2
+/*.img
+/*.img.zip
+/*.tar
+/*.tar.gz
+/*.tar.xz
+/*.zip
+
+# Local source archives and unrelated working files.
+/linux-*.tar.*
+/photo_*.jpg
+
+# Conventional location for future external build inputs. Documentation and
+# checksum manifests may still be committed alongside the ignored payloads.
+/inputs/*
+!/inputs/README.md
+!/inputs/SHA256SUMS
+
+# Root-level build products and logs.
+/output/
+/*.log
+
+# Editor and OS metadata.
+*~
+*.swp
+.DS_Store
+

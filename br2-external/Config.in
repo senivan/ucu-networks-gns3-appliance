@@ -1,0 +1,12 @@
+menu "GNS3 appliance packages"
+
+source "$BR2_EXTERNAL_GNS3_PATH/package/gns3-busybox/Config.in"
+source "$BR2_EXTERNAL_GNS3_PATH/package/python-gns3-platformdirs/Config.in"
+source "$BR2_EXTERNAL_GNS3_PATH/package/python-gns3-sentry-sdk/Config.in"
+source "$BR2_EXTERNAL_GNS3_PATH/package/python-py-cpuinfo/Config.in"
+source "$BR2_EXTERNAL_GNS3_PATH/package/python-truststore/Config.in"
+source "$BR2_EXTERNAL_GNS3_PATH/package/ubridge/Config.in"
+source "$BR2_EXTERNAL_GNS3_PATH/package/vpcs/Config.in"
+source "$BR2_EXTERNAL_GNS3_PATH/package/gns3-server/Config.in"
+
+endmenu
