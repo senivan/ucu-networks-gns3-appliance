@@ -34,37 +34,42 @@ compiler, GNU Make, Git, rsync, file, tar, cpio, unzip, Python, and the ext4
 filesystem utilities. Docker and xz are additionally required only when
 preparing a new cEOS archive.
 
-## Supply appliance images
+## Prepare appliance images
 
-Vendor and prebuilt images are deliberately not committed. Place these files
-under `inputs/`:
+The required appliance images are not committed. Supply the Alpine QCOW2 and
+MikroTik CHR archive under `inputs/`:
 
 ```text
 inputs/alpine-virt-3.22.1.qcow2
 inputs/chr-7.19.4.img.zip
-inputs/ceosimage-4.29.3M-docker.tar.xz
 ```
 
-Run the checksum validation before building:
-
-```sh
-make check-inputs
-```
-
-The expected hashes and notes about the original sources are in
-`inputs/SHA256SUMS` and `inputs/README.md`.
-
-To recreate the prepared Arista image from an authorized cEOS source archive,
-place `cEOS64-lab-4.29.3M.tar.xz` in `inputs/`, ensure Docker is running, and
-run:
+For Arista, place an authorized `cEOS64-lab-4.29.3M.tar.xz` in `inputs/`.
+With Docker running, prepare the archive used by the build:
 
 ```sh
 scripts/prepare-ceos
 ```
 
+This creates `inputs/ceosimage-4.29.3M-docker.tar.xz`. `make build` does not
+run this script and fails while creating the templates disk if the prepared
+archive is missing. If you already have the prepared archive with the expected
+checksum, you can use it without running the preparation script.
+
 The script refuses to replace existing Docker tags or an existing output file.
-After intentionally regenerating the archive, update its checksum everywhere
-identified in `inputs/README.md`.
+A newly generated archive may have a different checksum because Docker records
+creation metadata. Follow the checksum update steps in `inputs/README.md` if
+`make check-inputs` reports a mismatch for the prepared archive.
+
+Validate all required inputs before building:
+
+```sh
+make check-inputs
+```
+
+The expected hashes and source notes are in `inputs/SHA256SUMS` and
+`inputs/README.md`. Buildroot downloads its package sources and Linux kernel
+source during the build; `inputs/linux-7.1.4.tar.xz` is optional.
 
 ## Build the appliance
 
