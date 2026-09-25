@@ -51,6 +51,13 @@ prepare_directories() {
 		"$TEMPLATES_MOUNT/resources" \
 		"$PROJECTS_MOUNT"
 
+	# GNS3 scans every directory below projects_path at startup.  The ext4
+	# lost+found directory is root-only by default, which aborts that scan.
+	if [ -d "$PROJECTS_MOUNT/lost+found" ]; then
+		chown root:gns3 "$PROJECTS_MOUNT/lost+found" || return 1
+		chmod 0750 "$PROJECTS_MOUNT/lost+found" || return 1
+	fi
+
 	if [ -f "$TEMPLATES_MOUNT/configs/gns3_controller.conf" ]; then
 		chown gns3:gns3 \
 			"$TEMPLATES_MOUNT/configs/gns3_controller.conf"

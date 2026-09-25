@@ -1,0 +1,97 @@
+#!/bin/sh
+
+set -eu
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+REPO_DIR=$(dirname -- "$SCRIPT_DIR")
+TEST_TMP=$(mktemp -d)
+trap 'rm -rf "$TEST_TMP"' EXIT HUP INT TERM
+
+fail() {
+	echo "init script test failed: $*" >&2
+	exit 1
+}
+
+assert_contains() {
+	case "$1" in
+	*"$2"*) ;;
+	*) fail "expected '$2' in: $1" ;;
+	esac
+}
+
+assert_not_contains() {
+	case "$1" in
+	*"$2"*) fail "did not expect '$2' in: $1" ;;
+	*) ;;
+	esac
+}
+
+extract_functions() {
+	sed '/^case "$1" in/,$d' "$1"
+}
+
+test_project_storage_permissions() {
+	functions="$TEST_TMP/storage-functions"
+	extract_functions \
+		"$REPO_DIR/br2-external/board/gns3/rootfs-overlay/etc/init.d/S55gns3-storage" \
+		>"$functions"
+
+	(
+		# shellcheck source=/dev/null
+		. "$functions"
+		TEMPLATES_MOUNT="$TEST_TMP/library"
+		PROJECTS_MOUNT="$TEST_TMP/projects"
+		mkdir -p "$TEMPLATES_MOUNT" "$PROJECTS_MOUNT/lost+found"
+		chmod 0700 "$PROJECTS_MOUNT/lost+found"
+
+		install() { :; }
+		chown() { printf '%s\n' "$*" >>"$TEST_TMP/chown.log"; }
+
+		prepare_directories
+		mode=$(stat -c '%a' "$PROJECTS_MOUNT/lost+found")
+		[ "$mode" = 750 ] || fail "lost+found mode is $mode, expected 750"
+		grep -Fx "root:gns3 $PROJECTS_MOUNT/lost+found" \
+			"$TEST_TMP/chown.log" >/dev/null ||
+			fail "lost+found was not assigned to the gns3 group"
+	)
+}
+
+test_gns3_process_matching() {
+	functions="$TEST_TMP/gns3-functions"
+	extract_functions "$REPO_DIR/br2-external/package/gns3-server/S70gns3" \
+		>"$functions"
+
+	(
+		# shellcheck source=/dev/null
+		. "$functions"
+		PATH="$SCRIPT_DIR/fixtures:$PATH"
+		PIDFILE="$TEST_TMP/gns3server.pid"
+		START_STOP_DAEMON_LOG="$TEST_TMP/start-stop-daemon.log"
+		export PATH START_STOP_DAEMON_LOG
+		install() { :; }
+
+		start >/dev/null
+		args=$(cat "$START_STOP_DAEMON_LOG")
+		assert_contains "$args" "--pidfile $PIDFILE"
+		assert_contains "$args" "--name gns3server"
+		assert_contains "$args" "--startas /usr/bin/gns3server"
+		assert_not_contains "$args" "--exec"
+
+		: >"$PIDFILE"
+		stop >/dev/null
+		args=$(cat "$START_STOP_DAEMON_LOG")
+		assert_contains "$args" "--pidfile $PIDFILE"
+		assert_contains "$args" "--name gns3server"
+		assert_not_contains "$args" "--exec"
+
+		status >/dev/null
+		args=$(cat "$START_STOP_DAEMON_LOG")
+		assert_contains "$args" "--pidfile $PIDFILE"
+		assert_contains "$args" "--name gns3server"
+		assert_not_contains "$args" "--exec"
+	)
+}
+
+test_project_storage_permissions
+test_gns3_process_matching
+echo "Init script tests passed."

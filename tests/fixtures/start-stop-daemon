@@ -1,0 +1,4 @@
+#!/bin/sh
+
+printf '%s\n' "$*" >"$START_STOP_DAEMON_LOG"
+exit "${START_STOP_DAEMON_STATUS:-0}"
