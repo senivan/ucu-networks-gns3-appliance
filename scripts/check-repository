@@ -42,15 +42,17 @@ fi
 
 "$SCRIPT_DIR/setup-buildroot" --check
 
-find scripts br2-external -type f \
+find scripts tests br2-external -type f \
 	\( -name '*.sh' -o -path '*/etc/init.d/S*' -o \
-	-path '*/package/*/S[0-9]*' -o -path '*/scripts/*' \) \
+	-path '*/package/*/S[0-9]*' -o -path '*/scripts/*' -o \
+	-path 'tests/*' \) \
 	-exec sh -n {} +
 
 if command -v shellcheck >/dev/null 2>&1; then
-	find scripts br2-external -type f \
+	find scripts tests br2-external -type f \
 		\( -name '*.sh' -o -path '*/etc/init.d/S*' -o \
-		-path '*/package/*/S[0-9]*' -o -path '*/scripts/*' \) \
+		-path '*/package/*/S[0-9]*' -o -path '*/scripts/*' -o \
+		-path 'tests/*' \) \
 		-exec shellcheck {} +
 else
 	echo "shellcheck not installed; POSIX syntax checks passed."
@@ -66,5 +68,7 @@ awk '
 ' inputs/SHA256SUMS
 
 check_available_inputs
+
+"$REPO_DIR/tests/test-init-scripts"
 
 echo "Repository checks passed."

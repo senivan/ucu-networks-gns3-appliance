@@ -1,6 +1,7 @@
 #!/bin/sh
 
 DAEMON="/usr/bin/gns3server"
+DAEMON_NAME="gns3server"
 NAME="gns3"
 PIDFILE="/run/gns3/gns3server.pid"
 LOGFILE="/var/log/gns3/gns3server.log"
@@ -22,7 +23,8 @@ start() {
 		return 1
 	}
 	start-stop-daemon --start --quiet --pidfile "$PIDFILE" \
-		--exec "$DAEMON" --chuid gns3:gns3 --chdir /var/lib/gns3 \
+		--name "$DAEMON_NAME" --startas "$DAEMON" \
+		--chuid gns3:gns3 --chdir /var/lib/gns3 \
 		-- --config "$CONFIG" --daemon --pid "$PIDFILE" \
 		--log "$LOGFILE"
 	status=$?
@@ -37,7 +39,7 @@ start() {
 stop() {
 	printf 'Stopping %s: ' "$NAME"
 	start-stop-daemon --stop --quiet --retry TERM/30/KILL/5 \
-		--pidfile "$PIDFILE" --exec "$DAEMON"
+		--pidfile "$PIDFILE" --name "$DAEMON_NAME"
 	status=$?
 	if [ "$status" -eq 0 ]; then
 		rm -f "$PIDFILE"
@@ -50,7 +52,7 @@ stop() {
 
 status() {
 	if start-stop-daemon --stop --test --quiet --pidfile "$PIDFILE" \
-		--exec "$DAEMON"; then
+		--name "$DAEMON_NAME"; then
 		echo "$NAME is running"
 		return 0
 	fi
